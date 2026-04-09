@@ -100,7 +100,7 @@ class Image:
         return self._metadata
 
     def _fetch_assets(self) -> bool:
-        encoded_id = urllib.parse.quote(self.nasa_id)
+        encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
         assets = self._fetch_json(f"{NASA_ASSET_ENDPOINT}{encoded_id}")
         if assets and "collection" in assets:
             items = assets.get("collection").get("items")
