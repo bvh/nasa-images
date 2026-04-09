@@ -36,14 +36,16 @@ class Response:
 
 class Endpoint:
     @staticmethod
-    def http_get(url: str) -> urllib.request.HTTPResponse:
-        try:
-            with urllib.request.urlopen(url) as response:
-                return Response(response)
-        except HTTPError as e:
-            print(f"HTTP Error: {e.code} - {e.reason}", file=sys.stderr)
-        except URLError as e:
-            print(f"URL Error: {e.reason}", file=sys.stderr)
+    def http_get(url: str) -> urllib.request.HTTPResponse | None:
+        if url and len(url):
+            try:
+                with urllib.request.urlopen(url) as response:
+                    return Response(response)
+            except HTTPError as e:
+                print(f"HTTP Error: {e.code} - {e.reason}", file=sys.stderr)
+            except URLError as e:
+                print(f"URL Error: {e.reason}", file=sys.stderr)
+        return None
 
     @staticmethod
     def collapse_items(items: list[dict[str, str]], key: str = "href") -> list[str]:
