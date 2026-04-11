@@ -3,12 +3,16 @@ import os
 import re
 import shutil
 import sys
+import time
 import urllib.request
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from nasa_images.api import Asset, Endpoint
+from nasa_images.api import Album, Asset, Endpoint
+
+_DOWNLOAD_DELAY_SECS = 0.25   # pause between per-asset downloads
+_PAGE_DELAY_SECS = 0.5        # pause between album page requests
 
 
 _ORIG_RE = re.compile(r"~orig\.[^./]+$")
@@ -54,6 +58,54 @@ def fetch_media_by_id(nasa_id: str, catalog: Path) -> bool:
 
     print(f"fetched {nasa_id} -> {dest_dir}")
     return True
+
+
+def fetch_album_by_name(
+    album_name: str,
+    catalog: Path,
+    media_type: str | None = None,
+) -> None:
+    page = 1
+    total = 0
+    fetched = 0
+
+    while True:
+        album = Album(album_name, page=page)
+        if not album.okay or not album.data:
+            print(f"ERROR: failed to load album '{album_name}' page {page}", file=sys.stderr)
+            break
+
+        collection = album.data.get("collection") or {}
+        items = collection.get("items") or []
+
+        for item in items:
+            item_data_list = item.get("data") or []
+            if not item_data_list:
+                continue
+            item_data = item_data_list[0]
+
+            item_media_type = item_data.get("media_type")
+            if media_type is not None and item_media_type != media_type:
+                continue
+
+            nasa_id = item_data.get("nasa_id")
+            if not nasa_id:
+                print("WARNING: album item missing nasa_id; skipping", file=sys.stderr)
+                continue
+
+            total += 1
+            if fetch_media_by_id(nasa_id, catalog):
+                fetched += 1
+            time.sleep(_DOWNLOAD_DELAY_SECS)
+
+        links = collection.get("links") or []
+        if any(link.get("rel") == "next" for link in links):
+            page += 1
+            time.sleep(_PAGE_DELAY_SECS)
+        else:
+            break
+
+    print(f"fetched {fetched} of {total} items from album '{album_name}'")
 
 
 def _asset_urls(asset_data: dict[str, Any]) -> tuple[str | None, str | None]:

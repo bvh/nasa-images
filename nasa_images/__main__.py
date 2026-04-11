@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from nasa_images.api import Asset, Metadata, Album, Captions, Search
-from nasa_images.fetch import fetch_media_by_id
+from nasa_images.fetch import fetch_album_by_name, fetch_media_by_id
 
 
 def main() -> None:
@@ -76,7 +76,16 @@ def main() -> None:
             if args.id:
                 fetch_media_by_id(args.id, Path(args.catalog or "."))
             else:
-                print("ERROR: --id is required (only --id is supported for now)", file=sys.stderr)
+                print("ERROR: --id is required for fetch media", file=sys.stderr)
+        elif args.operand.lower() == "album":
+            if args.album:
+                fetch_album_by_name(
+                    args.album,
+                    Path(args.catalog or "."),
+                    media_type=args.media_type,
+                )
+            else:
+                print("ERROR: --album is required for fetch album", file=sys.stderr)
         else:
             print(f"ERROR: unknown fetch target {args.operand}", file=sys.stderr)
     else:
