@@ -1,9 +1,11 @@
 import argparse
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
 from nasa_images.api import Asset, Metadata, Album, Captions, Search
+from nasa_images.fetch import fetch_media_by_id
 
 
 def main() -> None:
@@ -69,6 +71,14 @@ def main() -> None:
                 print("ERROR: search returned no results", file=sys.stderr)
         else:
             print(f"ERROR: unknown endpoint {args.operand}", file=sys.stderr)
+    elif args.operation.lower() == "fetch":
+        if args.operand.lower() == "media":
+            if args.id:
+                fetch_media_by_id(args.id, Path(args.catalog or "."))
+            else:
+                print("ERROR: --id is required (only --id is supported for now)", file=sys.stderr)
+        else:
+            print(f"ERROR: unknown fetch target {args.operand}", file=sys.stderr)
     else:
         print(f"ERROR: unknown operation {args.operation}", file=sys.stderr)
 
@@ -137,6 +147,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--title", help='terms to search for in "Title" fields')
     parser.add_argument("--year-start", dest="year_start", help="start year for results (YYYY)")
     parser.add_argument("--year-end", dest="year_end", help="end year for results (YYYY)")
+    parser.add_argument("--catalog", help="catalog root directory for fetch (default: current directory)")
 
     return parser.parse_args()
 
