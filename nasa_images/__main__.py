@@ -3,7 +3,7 @@ import json
 import sys
 from typing import Any
 
-from nasa_images.api import Asset, Metadata, Album
+from nasa_images.api import Asset, Metadata, Album, Captions
 
 
 def main() -> None:
@@ -36,6 +36,15 @@ def main() -> None:
                     print(f"ERROR: no album found for album_name={args.album}")
             else:
                 print("ERROR: no album_name provided", file=sys.stderr)
+        elif args.operand.lower() == "captions":
+            if args.id:
+                captions = call_captions(args.id)
+                if captions:
+                    print(json.dumps(captions, indent=4))
+                else:
+                    print(f"ERROR: no captions found for nasa_id={args.id}")
+            else:
+                print("ERROR: no nasa_id provided", file=sys.stderr)
         else:
             print(f"ERROR: unknown endpoint {args.operand}", file=sys.stderr)
     else:
@@ -63,6 +72,14 @@ def call_album(album_name: str, page: int | None = None) -> dict[str, Any] | Non
     if album.okay:
         return album.data
     print(f"ERROR: album {album_name} not found", file=sys.stderr)
+    return None
+
+
+def call_captions(nasa_id: str) -> dict[str, Any] | None:
+    captions = Captions(nasa_id)
+    if captions.okay:
+        return captions.data
+    print(f"ERROR: captions for {nasa_id} not found", file=sys.stderr)
     return None
 
 
