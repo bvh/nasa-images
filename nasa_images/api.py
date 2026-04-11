@@ -56,63 +56,40 @@ class Endpoint:
             result.append(item.get(key))
         return result
 
+    def _fetch(self) -> None:
+        self.response = self.http_get(self.api_url)
+        self.okay = bool(self.response and self.response.status == 200)
+        self.data = self.response.parse_json() if self.okay else None
+
 
 class Asset(Endpoint):
     def __init__(self, nasa_id: str) -> None:
         self.nasa_id = nasa_id
-        self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
-        self.api_url = f"{NASA_ASSET_ENDPOINT}{self.encoded_id}"
-
-        self.response = self.http_get(self.api_url)
-        self.okay = True if self.response and self.response.status == 200 else False
-        if self.okay:
-            self.data = self.response.parse_json()
-        else:
-            self.data = None
+        self.api_url = f"{NASA_ASSET_ENDPOINT}{urllib.parse.quote(urllib.parse.unquote(nasa_id))}"
+        self._fetch()
 
 
 class Metadata(Endpoint):
     def __init__(self, nasa_id: str) -> None:
         self.nasa_id = nasa_id
-        self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
-        self.api_url = f"{NASA_METADATA_ENDPOINT}{self.encoded_id}"
-
-        self.response = self.http_get(self.api_url)
-        self.okay = True if self.response and self.response.status == 200 else False
-        if self.okay:
-            self.data = self.response.parse_json()
-        else:
-            self.data = None
+        self.api_url = f"{NASA_METADATA_ENDPOINT}{urllib.parse.quote(urllib.parse.unquote(nasa_id))}"
+        self._fetch()
 
 
 class Album(Endpoint):
     def __init__(self, album_name: str, page: int | None = None) -> None:
         self.album_name = album_name
-        self.encoded_name = urllib.parse.quote(urllib.parse.unquote(self.album_name))
-        self.api_url = f"{NASA_ALBUM_ENDPOINT}{self.encoded_name}"
+        self.api_url = f"{NASA_ALBUM_ENDPOINT}{urllib.parse.quote(urllib.parse.unquote(album_name))}"
         if page is not None:
             self.api_url += f"?page={page}"
-
-        self.response = self.http_get(self.api_url)
-        self.okay = True if self.response and self.response.status == 200 else False
-        if self.okay:
-            self.data = self.response.parse_json()
-        else:
-            self.data = None
+        self._fetch()
 
 
 class Captions(Endpoint):
     def __init__(self, nasa_id: str) -> None:
         self.nasa_id = nasa_id
-        self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
-        self.api_url = f"{NASA_CAPTIONS_ENDPOINT}{self.encoded_id}"
-
-        self.response = self.http_get(self.api_url)
-        self.okay = True if self.response and self.response.status == 200 else False
-        if self.okay:
-            self.data = self.response.parse_json()
-        else:
-            self.data = None
+        self.api_url = f"{NASA_CAPTIONS_ENDPOINT}{urllib.parse.quote(urllib.parse.unquote(nasa_id))}"
+        self._fetch()
 
 
 class Search(Endpoint):
@@ -154,11 +131,5 @@ class Search(Endpoint):
 
         query_string = urllib.parse.urlencode(params)
         self.api_url = f"{NASA_SEARCH_ENDPOINT}?{query_string}"
-
-        self.response = self.http_get(self.api_url)
-        self.okay = True if self.response and self.response.status == 200 else False
-        if self.okay:
-            self.data = self.response.parse_json()
-        else:
-            self.data = None
+        self._fetch()
 
