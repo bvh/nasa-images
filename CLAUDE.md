@@ -22,7 +22,15 @@ uv run nasa.py fetch media --id art002e000192 --catalog /tmp/nasa-cat
 uv run nasa.py fetch album --album Artemis_II --media-type image --catalog /tmp/nasa-cat
 ```
 
-There are no tests or linter configuration at this time.
+## Testing
+
+```sh
+uv run python -m unittest discover tests
+```
+
+Tests live under `tests/` and use `unittest` + `unittest.mock.patch` (stdlib only — no dev dependencies). Network calls are mocked via `FakeResponse` in `tests/fixtures.py`; the suite never hits the live NASA API. There is no linter configuration at this time.
+
+The `test_empty_dirs_should_not_appear` case in `tests/test_inventory.py` is marked `@unittest.expectedFailure` to track a known bug in `inventory.py:19` where empty directories are misclassified as leaf `nasa_id` dirs.
 
 ## Architecture
 
