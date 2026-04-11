@@ -9,6 +9,7 @@ NASA_DETAILS_URL = "https://images.nasa.gov/details/"
 NASA_API_URL = "https://images-api.nasa.gov"
 NASA_ASSET_ENDPOINT = f"{NASA_API_URL}/asset/"
 NASA_METADATA_ENDPOINT = f"{NASA_API_URL}/metadata/"
+NASA_ALBUM_ENDPOINT = f"{NASA_API_URL}/album/"
 
 
 class Response:
@@ -73,6 +74,22 @@ class Metadata(Endpoint):
         self.nasa_id = nasa_id
         self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
         self.api_url = f"{NASA_METADATA_ENDPOINT}{self.encoded_id}"
+
+        self.response = self.http_get(self.api_url)
+        self.okay = True if self.response and self.response.status == 200 else False
+        if self.okay:
+            self.data = self.response.parse_json()
+        else:
+            self.data = None
+
+
+class Album(Endpoint):
+    def __init__(self, album_name: str, page: int | None = None) -> None:
+        self.album_name = album_name
+        self.encoded_name = urllib.parse.quote(urllib.parse.unquote(self.album_name))
+        self.api_url = f"{NASA_ALBUM_ENDPOINT}{self.encoded_name}"
+        if page is not None:
+            self.api_url += f"?page={page}"
 
         self.response = self.http_get(self.api_url)
         self.okay = True if self.response and self.response.status == 200 else False

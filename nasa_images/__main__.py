@@ -3,7 +3,7 @@ import json
 import sys
 from typing import Any
 
-from nasa_images.api import Asset, Metadata
+from nasa_images.api import Asset, Metadata, Album
 
 
 def main() -> None:
@@ -27,6 +27,15 @@ def main() -> None:
                     print(f"ERROR: no metadata found for nasa_id={args.id}")
             else:
                 print("ERROR: no nasa_id provided", file=sys.stderr)
+        elif args.operand.lower() == "album":
+            if args.album:
+                album = call_album(args.album, args.page)
+                if album:
+                    print(json.dumps(album, indent=4))
+                else:
+                    print(f"ERROR: no album found for album_name={args.album}")
+            else:
+                print("ERROR: no album_name provided", file=sys.stderr)
         else:
             print(f"ERROR: unknown endpoint {args.operand}", file=sys.stderr)
     else:
@@ -49,6 +58,14 @@ def call_metadata(nasa_id: str) -> dict[str, Any] | None:
     return None
 
 
+def call_album(album_name: str, page: int | None = None) -> dict[str, Any] | None:
+    album = Album(album_name, page)
+    if album.okay:
+        return album.data
+    print(f"ERROR: album {album_name} not found", file=sys.stderr)
+    return None
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="simple script for working with the NASA images API"
@@ -58,6 +75,8 @@ def _parse_args() -> argparse.Namespace:
 
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-i", "--id", help="NASA ID of the media asset")
+    group.add_argument("-a", "--album", help="name of the media album")
+    parser.add_argument("-p", "--page", type=int, help="page number of results")
 
     return parser.parse_args()
 
