@@ -41,7 +41,7 @@ class Endpoint:
     def http_get(url: str) -> urllib.request.HTTPResponse | None:
         if url and len(url):
             try:
-                with urllib.request.urlopen(url) as response:
+                with urllib.request.urlopen(url.replace(" ", "%20")) as response:
                     return Response(response)
             except HTTPError as e:
                 print(f"HTTP Error: {e.code} - {e.reason}", file=sys.stderr)

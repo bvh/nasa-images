@@ -167,7 +167,7 @@ def _write_metadata(meta: dict[str, Any], dest: Path) -> None:
 def _download_file(url: str, dest: Path) -> None:
     part = dest.with_suffix(dest.suffix + ".part")
     try:
-        with urllib.request.urlopen(url) as response, part.open("wb") as out:
+        with urllib.request.urlopen(url.replace(" ", "%20")) as response, part.open("wb") as out:
             shutil.copyfileobj(response, out)
         os.replace(part, dest)
     except Exception:
