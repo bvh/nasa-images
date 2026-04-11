@@ -11,6 +11,7 @@ NASA_ASSET_ENDPOINT = f"{NASA_API_URL}/asset/"
 NASA_METADATA_ENDPOINT = f"{NASA_API_URL}/metadata/"
 NASA_ALBUM_ENDPOINT = f"{NASA_API_URL}/album/"
 NASA_CAPTIONS_ENDPOINT = f"{NASA_API_URL}/captions/"
+NASA_SEARCH_ENDPOINT = f"{NASA_API_URL}/search"
 
 
 class Response:
@@ -105,6 +106,54 @@ class Captions(Endpoint):
         self.nasa_id = nasa_id
         self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
         self.api_url = f"{NASA_CAPTIONS_ENDPOINT}{self.encoded_id}"
+
+        self.response = self.http_get(self.api_url)
+        self.okay = True if self.response and self.response.status == 200 else False
+        if self.okay:
+            self.data = self.response.parse_json()
+        else:
+            self.data = None
+
+
+class Search(Endpoint):
+    def __init__(
+        self,
+        q: str | None = None,
+        center: str | None = None,
+        description: str | None = None,
+        description_508: str | None = None,
+        keywords: str | None = None,
+        location: str | None = None,
+        media_type: str | None = None,
+        nasa_id: str | None = None,
+        page: int | None = None,
+        page_size: int | None = None,
+        photographer: str | None = None,
+        secondary_creator: str | None = None,
+        title: str | None = None,
+        year_start: str | None = None,
+        year_end: str | None = None,
+    ) -> None:
+        params = {k: v for k, v in {
+            "q": q,
+            "center": center,
+            "description": description,
+            "description_508": description_508,
+            "keywords": keywords,
+            "location": location,
+            "media_type": media_type,
+            "nasa_id": nasa_id,
+            "page": page,
+            "page_size": page_size,
+            "photographer": photographer,
+            "secondary_creator": secondary_creator,
+            "title": title,
+            "year_start": year_start,
+            "year_end": year_end,
+        }.items() if v is not None}
+
+        query_string = urllib.parse.urlencode(params)
+        self.api_url = f"{NASA_SEARCH_ENDPOINT}?{query_string}"
 
         self.response = self.http_get(self.api_url)
         self.okay = True if self.response and self.response.status == 200 else False
