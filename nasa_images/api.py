@@ -38,8 +38,8 @@ class Response:
 
 class Endpoint:
     @staticmethod
-    def http_get(url: str) -> urllib.request.HTTPResponse | None:
-        if url and len(url):
+    def http_get(url: str) -> Response | None:
+        if url:
             try:
                 with urllib.request.urlopen(url.replace(" ", "%20")) as response:
                     return Response(response)

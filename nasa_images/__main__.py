@@ -17,7 +17,7 @@ def main() -> None:
                 if manifest:
                     print(json.dumps(manifest, indent=4))
                 else:
-                    print(f"ERROR: no asset found for nasa_id={args.id}")
+                    print(f"ERROR: no asset found for nasa_id={args.id}", file=sys.stderr)
             else:
                 print("ERROR: no nasa_id provided", file=sys.stderr)
         elif args.operand.lower() == "metadata":
@@ -26,7 +26,7 @@ def main() -> None:
                 if metadata:
                     print(json.dumps(metadata, indent=4))
                 else:
-                    print(f"ERROR: no metadata found for nasa_id={args.id}")
+                    print(f"ERROR: no metadata found for nasa_id={args.id}", file=sys.stderr)
             else:
                 print("ERROR: no nasa_id provided", file=sys.stderr)
         elif args.operand.lower() == "album":
@@ -35,7 +35,7 @@ def main() -> None:
                 if album:
                     print(json.dumps(album, indent=4))
                 else:
-                    print(f"ERROR: no album found for album_name={args.album}")
+                    print(f"ERROR: no album found for album_name={args.album}", file=sys.stderr)
             else:
                 print("ERROR: no album_name provided", file=sys.stderr)
         elif args.operand.lower() == "captions":
@@ -44,7 +44,7 @@ def main() -> None:
                 if captions:
                     print(json.dumps(captions, indent=4))
                 else:
-                    print(f"ERROR: no captions found for nasa_id={args.id}")
+                    print(f"ERROR: no captions found for nasa_id={args.id}", file=sys.stderr)
             else:
                 print("ERROR: no nasa_id provided", file=sys.stderr)
         elif args.operand.lower() == "search":
