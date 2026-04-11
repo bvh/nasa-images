@@ -18,7 +18,19 @@ _PAGE_DELAY_SECS = 0.5        # pause between album page requests
 _ORIG_RE = re.compile(r"~orig\.[^./]+$")
 
 
-def fetch_media_by_id(nasa_id: str, catalog: Path) -> bool:
+def fetch_media_by_id(
+    nasa_id: str,
+    catalog: Path,
+    catalog_index: set[str] | None = None,
+) -> bool:
+    _own_index = catalog_index is None
+    if _own_index:
+        catalog_index = _load_catalog_index(catalog)
+
+    if nasa_id in catalog_index:
+        print(f"skipped {nasa_id} (already in catalog)")
+        return True
+
     asset = Asset(nasa_id)
     if not asset.okay or not asset.data:
         print(f"ERROR: asset {nasa_id} not found", file=sys.stderr)
@@ -56,6 +68,10 @@ def fetch_media_by_id(nasa_id: str, catalog: Path) -> bool:
     else:
         _download_file(orig_url, orig_path)
 
+    catalog_index.add(nasa_id)
+    if _own_index:
+        _save_catalog_index(catalog, catalog_index)
+
     print(f"fetched {nasa_id} -> {dest_dir}")
     return True
 
@@ -68,6 +84,9 @@ def fetch_album_by_name(
     page = 1
     total = 0
     fetched = 0
+    skipped = 0
+
+    catalog_index = _load_catalog_index(catalog)
 
     while True:
         album = Album(album_name, page=page)
@@ -94,8 +113,13 @@ def fetch_album_by_name(
                 continue
 
             total += 1
-            if fetch_media_by_id(nasa_id, catalog):
-                fetched += 1
+            already_present = nasa_id in catalog_index
+            if fetch_media_by_id(nasa_id, catalog, catalog_index):
+                if already_present:
+                    skipped += 1
+                else:
+                    fetched += 1
+                    _save_catalog_index(catalog, catalog_index)
             time.sleep(_DOWNLOAD_DELAY_SECS)
 
         links = collection.get("links") or []
@@ -105,7 +129,7 @@ def fetch_album_by_name(
         else:
             break
 
-    print(f"fetched {fetched} of {total} items from album '{album_name}'")
+    print(f"fetched {fetched}, skipped {skipped} of {total} items from album '{album_name}'")
 
 
 def _asset_urls(asset_data: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -174,3 +198,20 @@ def _download_file(url: str, dest: Path) -> None:
         if part.exists():
             part.unlink()
         raise
+
+
+def _catalog_index_path(catalog: Path) -> Path:
+    return catalog / "catalog.txt"
+
+
+def _load_catalog_index(catalog: Path) -> set[str]:
+    p = _catalog_index_path(catalog)
+    if not p.exists():
+        return set()
+    return set(p.read_text(encoding="utf-8").splitlines())
+
+
+def _save_catalog_index(catalog: Path, ids: set[str]) -> None:
+    _catalog_index_path(catalog).write_text(
+        "\n".join(sorted(ids)) + "\n", encoding="utf-8"
+    )
