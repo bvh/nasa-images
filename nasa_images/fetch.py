@@ -114,7 +114,13 @@ def fetch_album_by_name(
 
             total += 1
             already_present = nasa_id in catalog_index
-            if fetch_media_by_id(nasa_id, catalog, catalog_index):
+            try:
+                ok = fetch_media_by_id(nasa_id, catalog, catalog_index)
+            except Exception as exc:
+                print(f"ERROR: failed to fetch {nasa_id}: {exc}", file=sys.stderr)
+                time.sleep(_DOWNLOAD_DELAY_SECS)
+                continue
+            if ok:
                 if already_present:
                     skipped += 1
                 else:

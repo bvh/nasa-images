@@ -94,7 +94,7 @@ def main() -> None:
 
 def call_asset(nasa_id: str) -> dict[str, Any] | None:
     manifest = Asset(nasa_id)
-    if manifest:
+    if manifest.okay:
         return manifest.data
     print(f"ERROR: asset {nasa_id} not found", file=sys.stderr)
     return None
