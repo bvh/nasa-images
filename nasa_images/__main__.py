@@ -3,7 +3,7 @@ import json
 import sys
 from typing import Any
 
-from nasa_images.api import Asset
+from nasa_images.api import Asset, Metadata
 
 
 def main() -> None:
@@ -18,6 +18,15 @@ def main() -> None:
                     print(f"ERROR: no asset found for nasa_id={args.id}")
             else:
                 print("ERROR: no nasa_id provided", file=sys.stderr)
+        elif args.operand.lower() == "metadata":
+            if args.id:
+                metadata = call_metadata(args.id)
+                if metadata:
+                    print(json.dumps(metadata, indent=4))
+                else:
+                    print(f"ERROR: no metadata found for nasa_id={args.id}")
+            else:
+                print("ERROR: no nasa_id provided", file=sys.stderr)
         else:
             print(f"ERROR: unknown endpoint {args.operand}", file=sys.stderr)
     else:
@@ -29,6 +38,14 @@ def call_asset(nasa_id: str) -> dict[str, Any] | None:
     if manifest:
         return manifest.data
     print(f"ERROR: asset {nasa_id} not found", file=sys.stderr)
+    return None
+
+
+def call_metadata(nasa_id: str) -> dict[str, Any] | None:
+    metadata = Metadata(nasa_id)
+    if metadata.okay:
+        return metadata.data
+    print(f"ERROR: metadata for {nasa_id} not found", file=sys.stderr)
     return None
 
 

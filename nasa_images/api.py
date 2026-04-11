@@ -8,6 +8,7 @@ import urllib.request
 NASA_DETAILS_URL = "https://images.nasa.gov/details/"
 NASA_API_URL = "https://images-api.nasa.gov"
 NASA_ASSET_ENDPOINT = f"{NASA_API_URL}/asset/"
+NASA_METADATA_ENDPOINT = f"{NASA_API_URL}/metadata/"
 
 
 class Response:
@@ -57,8 +58,21 @@ class Asset(Endpoint):
     def __init__(self, nasa_id: str) -> None:
         self.nasa_id = nasa_id
         self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
-        self.details_url = f"{NASA_DETAILS_URL}{self.encoded_id}"
         self.api_url = f"{NASA_ASSET_ENDPOINT}{self.encoded_id}"
+
+        self.response = self.http_get(self.api_url)
+        self.okay = True if self.response and self.response.status == 200 else False
+        if self.okay:
+            self.data = self.response.parse_json()
+        else:
+            self.data = None
+
+
+class Metadata(Endpoint):
+    def __init__(self, nasa_id: str) -> None:
+        self.nasa_id = nasa_id
+        self.encoded_id = urllib.parse.quote(urllib.parse.unquote(self.nasa_id))
+        self.api_url = f"{NASA_METADATA_ENDPOINT}{self.encoded_id}"
 
         self.response = self.http_get(self.api_url)
         self.okay = True if self.response and self.response.status == 200 else False
