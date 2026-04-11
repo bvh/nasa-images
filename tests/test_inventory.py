@@ -33,12 +33,7 @@ class TestInventory(unittest.TestCase):
                 (d / "img.jpg").write_bytes(b"x")
             self.assertEqual(inventory(root), ["abc", "xyz"])
 
-    @unittest.expectedFailure
     def test_empty_dirs_should_not_appear(self):
-        # Review item #5: empty dirs currently leak into results because
-        # `any(p.is_dir() for p in iterdir())` returns False on an empty
-        # directory, so it's classified as a leaf. Tracked as expectedFailure
-        # until the bug is fixed.
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "unknown" / "empty").mkdir(parents=True)

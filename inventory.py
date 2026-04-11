@@ -16,7 +16,7 @@ def inventory(catalog: Path) -> list[str]:
     # (no subdirectories). Walk the tree and collect leaf directories.
     ids = []
     for path in catalog.rglob("*"):
-        if path.is_dir() and not any(p.is_dir() for p in path.iterdir()):
+        if path.is_dir() and any(p.is_file() for p in path.iterdir()):
             ids.append(path.name)
     return sorted(ids)
 
