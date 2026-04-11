@@ -30,7 +30,7 @@ There are no tests or linter configuration at this time.
 
 `nasa_images/api.py` contains six classes:
 - `Response` — wraps `urllib.request.HTTPResponse`; exposes `.status`, `.text`, and `.parse_json()`.
-- `Endpoint` — base class with `http_get()` (wraps `urllib.request.urlopen`, returns a `Response`) and `collapse_items()` (flattens a list of dicts to a list of values for a given key).
+- `Endpoint` — base class with `http_get()` (static method; wraps `urllib.request.urlopen`, returns a `Response`) and `collapse_items()` (flattens a list of dicts to a list of values for a given key). `http_get()` can be called directly as `Endpoint.http_get(url)` without instantiating a subclass.
 - `Asset(Endpoint)` — wraps `/asset/{nasa_id}`.
 - `Metadata(Endpoint)` — wraps `/metadata/{nasa_id}`.
 - `Album(Endpoint)` — wraps `/album/{album_name}` with an optional `?page=` query parameter.
@@ -40,5 +40,9 @@ There are no tests or linter configuration at this time.
 All endpoint classes follow the same construction pattern: encode params → build `self.api_url` → call `http_get()` → check status into `self.okay` → call `parse_json()` → store in `self.data`.
 
 `nasa_images/__main__.py` provides the CLI via `argparse`. The first positional argument is `operation` (`call` or `fetch`); the second is `operand`. `call <endpoint>` dispatches on `asset`, `metadata`, `album`, `captions`, or `search` and prints the raw JSON response. `fetch media --id <nasa_id> [--catalog <dir>]` downloads the canonical `~orig` asset and its `metadata.json` into a date-partitioned catalog (`<catalog>/<YYYY>/<MM>/<YYYY-MM-DD>/<nasa_id>/`, or `<catalog>/unknown/<nasa_id>/` when no usable date is found). Existing files are never overwritten — a warning is printed and the file is skipped. `fetch album --album <name> [--media-type image] [--catalog <dir>]` walks every page of an album (following `rel: "next"` pagination links), optionally filters by `media_type`, and calls `fetch_media_by_id` for each matching item. The catalog layout logic lives in `nasa_images/fetch.py`.
+
+`nasa_images/fetch.py` maintains a `catalog.txt` index file at the catalog root (one `nasa_id` per line, kept sorted) to enable fast deduplication across runs without re-scanning the directory tree. Downloads use a `.part` temporary file that is atomically renamed on success and deleted on failure. Rate-limiting constants: `_DOWNLOAD_DELAY_SECS = 0.25` between assets, `_PAGE_DELAY_SECS = 0.5` between album pages — always preserve these delays when modifying loops that hit the NASA API.
+
+`inventory.py` is a standalone utility (`python inventory.py <catalog>`) that scans a catalog directory and prints all `nasa_id`s found (leaf directories containing only files, no subdirectories).
 
 The project has **no external dependencies** — stdlib only (`urllib`, `json`, `argparse`). Python 3.14+ is required. Package management uses `uv`.
