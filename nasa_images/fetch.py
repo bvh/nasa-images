@@ -134,7 +134,9 @@ def fetch_album_by_name(
             time.sleep(_DOWNLOAD_DELAY_SECS)
 
         links = collection.get("links") or []
-        if any(link.get("rel") == "next" for link in links):
+        next_link = next((link for link in links if link.get("rel") == "next"), None)
+        next_href = next_link.get("href") if next_link else None
+        if next_href and next_href != album.api_url:
             page += 1
             time.sleep(_PAGE_DELAY_SECS)
         else:
@@ -220,7 +222,9 @@ def fetch_search(
             time.sleep(_DOWNLOAD_DELAY_SECS)
 
         links = collection.get("links") or []
-        if any(link.get("rel") == "next" for link in links):
+        next_link = next((link for link in links if link.get("rel") == "next"), None)
+        next_href = next_link.get("href") if next_link else None
+        if next_href and next_href != results.api_url:
             page += 1
             time.sleep(_PAGE_DELAY_SECS)
         else:

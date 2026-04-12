@@ -19,7 +19,7 @@ def _fake_album_page(items, has_next: bool = False) -> MagicMock:
     m.data = {
         "collection": {
             "items": items,
-            "links": [{"rel": "next"}] if has_next else [],
+            "links": [{"rel": "next", "href": "https://images-api.nasa.gov/next-page"}] if has_next else [],
         }
     }
     return m
