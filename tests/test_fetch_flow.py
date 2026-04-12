@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from nasa_images.fetch import fetch_album_by_name, fetch_media_by_id
+from nasa_images.fetch import fetch_album_by_name, fetch_media_by_id, fetch_search
 
 
 def _fake_asset(okay: bool = True, items=None) -> MagicMock:
@@ -202,4 +202,88 @@ class TestFetchAlbumByName(unittest.TestCase):
             patch("nasa_images.fetch.time.sleep"),
         ):
             fetch_album_by_name("album", self.catalog)
+
+
+class TestFetchSearch(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.catalog = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_pagination_walks_all_pages(self):
+        page1 = _fake_album_page(
+            [{"data": [{"nasa_id": "a", "media_type": "image"}]}], has_next=True
+        )
+        page2 = _fake_album_page(
+            [{"data": [{"nasa_id": "b", "media_type": "image"}]}]
+        )
+        with (
+            patch("nasa_images.fetch.Search", side_effect=[page1, page2]),
+            patch("nasa_images.fetch.fetch_media_by_id", return_value=True) as fm,
+            patch("nasa_images.fetch.time.sleep"),
+        ):
+            fetch_search(self.catalog, q="moon")
+        self.assertEqual([c.args[0] for c in fm.call_args_list], ["a", "b"])
+
+    def test_media_type_is_server_side(self):
+        # media_type is a Search API param — no client-side filtering happens.
+        # All items in the response are fetched regardless of their media_type field.
+        page = _fake_album_page([
+            {"data": [{"nasa_id": "a", "media_type": "image"}]},
+            {"data": [{"nasa_id": "b", "media_type": "video"}]},
+        ])
+        with (
+            patch("nasa_images.fetch.Search", return_value=page),
+            patch("nasa_images.fetch.fetch_media_by_id", return_value=True) as fm,
+            patch("nasa_images.fetch.time.sleep"),
+        ):
+            fetch_search(self.catalog, media_type="image")
+        self.assertEqual([c.args[0] for c in fm.call_args_list], ["a", "b"])
+
+    def test_continues_on_per_item_exception(self):
+        page = _fake_album_page([
+            {"data": [{"nasa_id": "a", "media_type": "image"}]},
+            {"data": [{"nasa_id": "b", "media_type": "image"}]},
+            {"data": [{"nasa_id": "c", "media_type": "image"}]},
+        ])
+
+        def side_effect(nasa_id, *args, **kwargs):
+            if nasa_id == "b":
+                raise RuntimeError("download failed")
+            return True
+
+        with (
+            patch("nasa_images.fetch.Search", return_value=page),
+            patch("nasa_images.fetch.fetch_media_by_id", side_effect=side_effect) as fm,
+            patch("nasa_images.fetch.time.sleep"),
+        ):
+            fetch_search(self.catalog)
+        self.assertEqual(fm.call_count, 3)
+
+    def test_missing_nasa_id_is_skipped(self):
+        page = _fake_album_page([
+            {"data": [{"media_type": "image"}]},
+            {"data": [{"nasa_id": "a", "media_type": "image"}]},
+        ])
+        with (
+            patch("nasa_images.fetch.Search", return_value=page),
+            patch("nasa_images.fetch.fetch_media_by_id", return_value=True) as fm,
+            patch("nasa_images.fetch.time.sleep"),
+        ):
+            fetch_search(self.catalog)
+        self.assertEqual([c.args[0] for c in fm.call_args_list], ["a"])
+
+    def test_search_not_okay_breaks_cleanly(self):
+        bad = MagicMock()
+        bad.okay = False
+        bad.data = None
+        with (
+            patch("nasa_images.fetch.Search", return_value=bad),
+            patch("nasa_images.fetch.fetch_media_by_id") as fm,
+            patch("nasa_images.fetch.time.sleep"),
+        ):
+            fetch_search(self.catalog, q="moon")
+        fm.assert_not_called()
         fm.assert_not_called()

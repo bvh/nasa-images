@@ -9,7 +9,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from nasa_images.api import Album, Asset, Endpoint
+from nasa_images.api import Album, Asset, Endpoint, Search
 
 _DOWNLOAD_DELAY_SECS = 0.25   # pause between per-asset downloads
 _PAGE_DELAY_SECS = 0.5        # pause between album page requests
@@ -136,6 +136,92 @@ def fetch_album_by_name(
             break
 
     print(f"fetched {fetched}, skipped {skipped} of {total} items from album '{album_name}'")
+
+
+def fetch_search(
+    catalog: Path,
+    q: str | None = None,
+    center: str | None = None,
+    description: str | None = None,
+    description_508: str | None = None,
+    keywords: str | None = None,
+    location: str | None = None,
+    media_type: str | None = None,
+    nasa_id: str | None = None,
+    page_size: int | None = None,
+    photographer: str | None = None,
+    secondary_creator: str | None = None,
+    title: str | None = None,
+    year_start: str | None = None,
+    year_end: str | None = None,
+) -> None:
+    page = 1
+    total = 0
+    fetched = 0
+    skipped = 0
+
+    catalog_index = _load_catalog_index(catalog)
+
+    while True:
+        results = Search(
+            q=q,
+            center=center,
+            description=description,
+            description_508=description_508,
+            keywords=keywords,
+            location=location,
+            media_type=media_type,
+            nasa_id=nasa_id,
+            page=page,
+            page_size=page_size,
+            photographer=photographer,
+            secondary_creator=secondary_creator,
+            title=title,
+            year_start=year_start,
+            year_end=year_end,
+        )
+        if not results.okay or not results.data:
+            print(f"ERROR: search failed on page {page}", file=sys.stderr)
+            break
+
+        collection = results.data.get("collection") or {}
+        items = collection.get("items") or []
+
+        for item in items:
+            item_data_list = item.get("data") or []
+            if not item_data_list:
+                continue
+            item_data = item_data_list[0]
+
+            item_nasa_id = item_data.get("nasa_id")
+            if not item_nasa_id:
+                print("WARNING: search result item missing nasa_id; skipping", file=sys.stderr)
+                continue
+
+            total += 1
+            already_present = item_nasa_id in catalog_index
+            try:
+                ok = fetch_media_by_id(item_nasa_id, catalog, catalog_index)
+            except Exception as exc:
+                print(f"ERROR: failed to fetch {item_nasa_id}: {exc}", file=sys.stderr)
+                time.sleep(_DOWNLOAD_DELAY_SECS)
+                continue
+            if ok:
+                if already_present:
+                    skipped += 1
+                else:
+                    fetched += 1
+                    _save_catalog_index(catalog, catalog_index)
+            time.sleep(_DOWNLOAD_DELAY_SECS)
+
+        links = collection.get("links") or []
+        if any(link.get("rel") == "next" for link in links):
+            page += 1
+            time.sleep(_PAGE_DELAY_SECS)
+        else:
+            break
+
+    print(f"fetched {fetched}, skipped {skipped} of {total} items from search")
 
 
 def _asset_urls(asset_data: dict[str, Any]) -> tuple[str | None, str | None]:

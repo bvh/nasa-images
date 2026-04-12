@@ -14,6 +14,10 @@ uv run nasa.py call search [--q TEXT] [--center TEXT] [--description TEXT] [--ke
   [--photographer TEXT] [--secondary-creator TEXT] [--title TEXT] [--year-start YYYY] [--year-end YYYY]
 uv run nasa.py fetch media --id <nasa_id> [--catalog <dir>]
 uv run nasa.py fetch album --album <album_name> [--media-type image|video|audio] [--catalog <dir>]
+uv run nasa.py fetch search [--q TEXT] [--center TEXT] [--description TEXT] \
+  [--keywords TEXT] [--location TEXT] [--media-type TEXT] [--nasa-id TEXT] \
+  [--page-size INT] [--photographer TEXT] [--secondary-creator TEXT] \
+  [--title TEXT] [--year-start YYYY] [--year-end YYYY] [--catalog <dir>]
 
 # Example
 uv run nasa.py call asset --id art002e000192
@@ -47,7 +51,7 @@ The `test_empty_dirs_should_not_appear` case in `tests/test_inventory.py` is mar
 
 All endpoint classes follow the same construction pattern: encode params → build `self.api_url` → call `http_get()` → check status into `self.okay` → call `parse_json()` → store in `self.data`.
 
-`nasa_images/__main__.py` provides the CLI via `argparse`. The first positional argument is `operation` (`call` or `fetch`); the second is `operand`. `call <endpoint>` dispatches on `asset`, `metadata`, `album`, `captions`, or `search` and prints the raw JSON response. `fetch media --id <nasa_id> [--catalog <dir>]` downloads the canonical `~orig` asset and its `metadata.json` into a date-partitioned catalog (`<catalog>/<YYYY>/<MM>/<YYYY-MM-DD>/<nasa_id>/`, or `<catalog>/unknown/<nasa_id>/` when no usable date is found). Existing files are never overwritten — a warning is printed and the file is skipped. `fetch album --album <name> [--media-type image] [--catalog <dir>]` walks every page of an album (following `rel: "next"` pagination links), optionally filters by `media_type`, and calls `fetch_media_by_id` for each matching item. The catalog layout logic lives in `nasa_images/fetch.py`.
+`nasa_images/__main__.py` provides the CLI via `argparse`. The first positional argument is `operation` (`call` or `fetch`); the second is `operand`. `call <endpoint>` dispatches on `asset`, `metadata`, `album`, `captions`, or `search` and prints the raw JSON response. `fetch media --id <nasa_id> [--catalog <dir>]` downloads the canonical `~orig` asset and its `metadata.json` into a date-partitioned catalog (`<catalog>/<YYYY>/<MM>/<YYYY-MM-DD>/<nasa_id>/`, or `<catalog>/unknown/<nasa_id>/` when no usable date is found). Existing files are never overwritten — a warning is printed and the file is skipped. `fetch album --album <name> [--media-type image] [--catalog <dir>]` walks every page of an album (following `rel: "next"` pagination links), optionally filters by `media_type`, and calls `fetch_media_by_id` for each matching item. `fetch search [--q TEXT] [...]` does the same for search results — all search parameters are forwarded to the API as server-side filters; `media_type` filtering is not duplicated client-side. The catalog layout logic lives in `nasa_images/fetch.py`.
 
 `nasa_images/fetch.py` maintains a `catalog.txt` index file at the catalog root (one `nasa_id` per line, kept sorted) to enable fast deduplication across runs without re-scanning the directory tree. Downloads use a `.part` temporary file that is atomically renamed on success and deleted on failure. Rate-limiting constants: `_DOWNLOAD_DELAY_SECS = 0.25` between assets, `_PAGE_DELAY_SECS = 0.5` between album pages — always preserve these delays when modifying loops that hit the NASA API.
 
