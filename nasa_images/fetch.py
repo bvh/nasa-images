@@ -68,6 +68,11 @@ def fetch_media_by_id(
     else:
         _download_file(orig_url, orig_path)
 
+    if not orig_path.exists():
+        return False
+    if metadata_url and not metadata_path.exists():
+        return False
+
     catalog_index.add(nasa_id)
     if _own_index:
         _save_catalog_index(catalog, catalog_index)

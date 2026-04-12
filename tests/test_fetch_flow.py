@@ -61,7 +61,7 @@ class TestFetchMediaById(unittest.TestCase):
         with (
             patch("nasa_images.fetch.Asset", return_value=asset),
             patch("nasa_images.fetch._load_metadata_json", return_value=meta),
-            patch("nasa_images.fetch._download_file") as dl,
+            patch("nasa_images.fetch._download_file", side_effect=lambda url, dest: dest.write_bytes(b"fake")) as dl,
         ):
             idx: set[str] = set()
             result = fetch_media_by_id("id-1", self.catalog, idx)
@@ -79,10 +79,43 @@ class TestFetchMediaById(unittest.TestCase):
         with (
             patch("nasa_images.fetch.Asset", return_value=asset),
             patch("nasa_images.fetch._load_metadata_json", return_value=None),
-            patch("nasa_images.fetch._download_file"),
+            patch("nasa_images.fetch._download_file", side_effect=lambda url, dest: dest.write_bytes(b"fake")),
         ):
             fetch_media_by_id("id-1", self.catalog, set())
         self.assertTrue((self.catalog / "unknown" / "id-1").exists())
+
+    def test_not_cataloged_if_metadata_url_present_but_metadata_missing(self):
+        # If a metadata URL exists but metadata.json couldn't be fetched (transient
+        # failure), the ID must NOT be cataloged so a retry can pick it up.
+        items = [
+            {"href": "https://x/foo~orig.jpg"},
+            {"href": "https://x/metadata.json"},
+        ]
+        asset = _fake_asset(items=items)
+        with (
+            patch("nasa_images.fetch.Asset", return_value=asset),
+            patch("nasa_images.fetch._load_metadata_json", return_value=None),
+            patch("nasa_images.fetch._download_file", side_effect=lambda url, dest: dest.write_bytes(b"fake")),
+        ):
+            idx: set[str] = set()
+            result = fetch_media_by_id("id-1", self.catalog, idx)
+        self.assertFalse(result)
+        self.assertNotIn("id-1", idx)
+
+    def test_not_cataloged_if_orig_missing_after_download(self):
+        # If _download_file somehow doesn't produce the file (no exception but no file),
+        # the ID must NOT be added to the catalog index.
+        items = [{"href": "https://x/foo~orig.jpg"}]
+        asset = _fake_asset(items=items)
+        with (
+            patch("nasa_images.fetch.Asset", return_value=asset),
+            patch("nasa_images.fetch._load_metadata_json", return_value=None),
+            patch("nasa_images.fetch._download_file"),  # no-op: file never created
+        ):
+            idx: set[str] = set()
+            result = fetch_media_by_id("id-1", self.catalog, idx)
+        self.assertFalse(result)
+        self.assertNotIn("id-1", idx)
 
     def test_existing_files_not_overwritten(self):
         items = [
