@@ -5,7 +5,8 @@ import shutil
 import sys
 import time
 import urllib.request
-from datetime import date, datetime
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,13 @@ _PAGE_DELAY_SECS = 0.5        # pause between album page requests
 
 
 _ORIG_RE = re.compile(r"~orig\.[^./]+$")
+
+
+@dataclass(frozen=True)
+class PartialDate:
+    year: int
+    month: int | None = None
+    day: int | None = None
 
 
 def fetch_media_by_id(
@@ -51,6 +59,9 @@ def fetch_media_by_id(
     d = _extract_date(meta)
     if d is None:
         print(f"WARNING: no usable date for {nasa_id}; filing under unknown/", file=sys.stderr)
+    elif d.day is None:
+        loc = f"{d.year:04d}/" if d.month is None else f"{d.year:04d}/{d.month:02d}/"
+        print(f"WARNING: partial date for {nasa_id}; filing under {loc}unknown/", file=sys.stderr)
 
     dest_dir = _destination(catalog, nasa_id, d)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -258,30 +269,51 @@ def _load_metadata_json(metadata_url: str) -> dict[str, Any] | None:
     return response.parse_json()
 
 
-def _extract_date(meta: dict[str, Any]) -> date | None:
-    exif_formats = ("%Y:%m:%d %H:%M:%S",)
-    avail_formats = ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d", "%Y:%m:%d")
+def _extract_date(meta: dict[str, Any]) -> PartialDate | None:
+    # Each entry: (format_string, has_month, has_day)
+    exif_specs: tuple[tuple[str, bool, bool], ...] = (
+        ("%Y:%m:%d %H:%M:%S", True, True),
+    )
+    avail_specs: tuple[tuple[str, bool, bool], ...] = (
+        ("%Y-%m-%dT%H:%M:%SZ", True, True),       # "2022-03-04T05:06:07Z"
+        ("%Y-%m-%dT%H:%M:%S%z", True, True),       # "1969-03-09T00:00:00-08:00"
+        ("%Y-%m-%d", True, True),                   # "2021-07-08"
+        ("%Y:%m:%d", True, True),                   # "2020:11:12"
+        ("%d %B %Y", True, True),                   # "05 December 2022"
+        ("%Y-%m", True, False),                     # "2019-06"
+        ("%Y", False, False),                       # "2019"
+    )
 
-    candidates: list[tuple[Any, tuple[str, ...]]] = [
-        (meta.get("EXIF:DateTimeOriginal"), exif_formats),
-        (meta.get("EXIF:CreateDate"), exif_formats),
-        (meta.get("AVAIL:DateCreated"), avail_formats),
+    candidates: list[tuple[Any, tuple[tuple[str, bool, bool], ...]]] = [
+        (meta.get("EXIF:DateTimeOriginal"), exif_specs),
+        (meta.get("EXIF:CreateDate"), exif_specs),
+        (meta.get("AVAIL:DateCreated"), avail_specs),
     ]
-    for value, formats in candidates:
+    for value, specs in candidates:
         if not isinstance(value, str) or not value:
             continue
-        for fmt in formats:
+        for fmt, has_month, has_day in specs:
             try:
-                return datetime.strptime(value, fmt).date()
+                dt = datetime.strptime(value, fmt)
             except ValueError:
                 continue
+            if has_day:
+                return PartialDate(dt.year, dt.month, dt.day)
+            if has_month:
+                return PartialDate(dt.year, dt.month)
+            return PartialDate(dt.year)
     return None
 
 
-def _destination(catalog: Path, nasa_id: str, d: date | None) -> Path:
+def _destination(catalog: Path, nasa_id: str, d: PartialDate | None) -> Path:
     if d is None:
         return catalog / "unknown" / nasa_id
-    return catalog / f"{d.year:04d}" / f"{d.month:02d}" / d.isoformat() / nasa_id
+    if d.day is not None:
+        day_str = f"{d.year:04d}-{d.month:02d}-{d.day:02d}"
+        return catalog / f"{d.year:04d}" / f"{d.month:02d}" / day_str / nasa_id
+    if d.month is not None:
+        return catalog / f"{d.year:04d}" / f"{d.month:02d}" / "unknown" / nasa_id
+    return catalog / f"{d.year:04d}" / "unknown" / nasa_id
 
 
 def _write_metadata(meta: dict[str, Any], dest: Path) -> None:

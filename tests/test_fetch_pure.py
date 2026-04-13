@@ -1,8 +1,7 @@
 import unittest
-from datetime import date
 from pathlib import Path
 
-from nasa_images.fetch import _ORIG_RE, _asset_urls, _destination, _extract_date
+from nasa_images.fetch import _ORIG_RE, _asset_urls, _destination, _extract_date, PartialDate
 
 
 class TestOrigRe(unittest.TestCase):
@@ -26,31 +25,55 @@ class TestExtractDate(unittest.TestCase):
     def test_exif_datetime_original(self):
         self.assertEqual(
             _extract_date({"EXIF:DateTimeOriginal": "2024:06:15 12:34:56"}),
-            date(2024, 6, 15),
+            PartialDate(2024, 6, 15),
         )
 
     def test_exif_create_date_fallback(self):
         self.assertEqual(
             _extract_date({"EXIF:CreateDate": "2023:01:02 00:00:00"}),
-            date(2023, 1, 2),
+            PartialDate(2023, 1, 2),
         )
 
     def test_avail_iso8601(self):
         self.assertEqual(
             _extract_date({"AVAIL:DateCreated": "2022-03-04T05:06:07Z"}),
-            date(2022, 3, 4),
+            PartialDate(2022, 3, 4),
         )
 
     def test_avail_short_date(self):
         self.assertEqual(
             _extract_date({"AVAIL:DateCreated": "2021-07-08"}),
-            date(2021, 7, 8),
+            PartialDate(2021, 7, 8),
         )
 
     def test_avail_colon_date(self):
         self.assertEqual(
             _extract_date({"AVAIL:DateCreated": "2020:11:12"}),
-            date(2020, 11, 12),
+            PartialDate(2020, 11, 12),
+        )
+
+    def test_avail_iso_with_tz_offset(self):
+        self.assertEqual(
+            _extract_date({"AVAIL:DateCreated": "1969-03-09T00:00:00-08:00"}),
+            PartialDate(1969, 3, 9),
+        )
+
+    def test_avail_day_month_year_long(self):
+        self.assertEqual(
+            _extract_date({"AVAIL:DateCreated": "05 December 2022"}),
+            PartialDate(2022, 12, 5),
+        )
+
+    def test_avail_year_month(self):
+        self.assertEqual(
+            _extract_date({"AVAIL:DateCreated": "2019-06"}),
+            PartialDate(2019, 6),
+        )
+
+    def test_avail_year_only(self):
+        self.assertEqual(
+            _extract_date({"AVAIL:DateCreated": "2019"}),
+            PartialDate(2019),
         )
 
     def test_prefers_exif_over_avail(self):
@@ -58,7 +81,7 @@ class TestExtractDate(unittest.TestCase):
             "EXIF:DateTimeOriginal": "2024:06:15 12:34:56",
             "AVAIL:DateCreated": "2020-01-01",
         }
-        self.assertEqual(_extract_date(meta), date(2024, 6, 15))
+        self.assertEqual(_extract_date(meta), PartialDate(2024, 6, 15))
 
     def test_empty_meta(self):
         self.assertIsNone(_extract_date({}))
@@ -75,15 +98,23 @@ class TestExtractDate(unittest.TestCase):
 
 class TestDestination(unittest.TestCase):
     def test_dated_path(self):
-        result = _destination(Path("/cat"), "abc", date(2024, 5, 6))
+        result = _destination(Path("/cat"), "abc", PartialDate(2024, 5, 6))
         self.assertEqual(result, Path("/cat/2024/05/2024-05-06/abc"))
 
     def test_unknown_path(self):
         result = _destination(Path("/cat"), "abc", None)
         self.assertEqual(result, Path("/cat/unknown/abc"))
 
+    def test_year_only_path(self):
+        result = _destination(Path("/cat"), "abc", PartialDate(2019))
+        self.assertEqual(result, Path("/cat/2019/unknown/abc"))
+
+    def test_year_month_path(self):
+        result = _destination(Path("/cat"), "abc", PartialDate(2019, 6))
+        self.assertEqual(result, Path("/cat/2019/06/unknown/abc"))
+
     def test_zero_padding(self):
-        result = _destination(Path("/cat"), "abc", date(7, 1, 2))
+        result = _destination(Path("/cat"), "abc", PartialDate(7, 1, 2))
         self.assertEqual(result, Path("/cat/0007/01/0007-01-02/abc"))
 
 
